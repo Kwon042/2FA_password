@@ -6,6 +6,7 @@ import com.example.authentication_security.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,4 +21,13 @@ public class UserController {
         UserResponse userResponse = userService.signup(userSignupRequest);
         return ResponseEntity.ok(userResponse);
     }
+
+    @DeleteMapping("/delete")
+    public ResponseEntity<Void> deleteUser(Authentication authentication) {
+        String username = authentication.getName();
+        userService.deleteUserByUsername(username);
+        return ResponseEntity.noContent().build();
+    }
+
+
 }

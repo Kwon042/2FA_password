@@ -13,4 +13,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     // 이메일 중복 검사 메서드
     boolean existsByEmail(String email);
+
+    void deleteByUsername(String username);
+
 }

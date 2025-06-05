@@ -1,5 +1,6 @@
 package com.example.authentication_security.security;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,23 +27,32 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/", "/login", "/signup", "/api/**", "/js/**", "/css/**").permitAll()
-                        .anyRequest().authenticated()
-                )
-                .formLogin(form -> form
-                        .loginPage("/login")
-                        .permitAll()
-                        .defaultSuccessUrl("/login_success_form", true)
-                )
-                .logout(logout -> logout
-                        .logoutUrl("/logout")
-                        .logoutSuccessUrl("/login")
-                        .permitAll()
-                );
-//                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class); // JWT 필터 추가
-
+            .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(authorize -> authorize
+                    .requestMatchers("/", "/login", "/signup", "/api/**", "/js/**", "/css/**").permitAll()
+                    .anyRequest().authenticated()
+            )
+            .formLogin(form -> form
+                    .loginPage("/login")
+                    .permitAll()
+                    .defaultSuccessUrl("/login_success_form", true)
+            )
+            .logout(logout -> logout
+                    .logoutUrl("/logout")
+                    .logoutSuccessUrl("/login")
+                    .permitAll()
+            )
+            .exceptionHandling(exception -> exception
+                    .authenticationEntryPoint((request, response, authException) -> {
+                        if (request.getRequestURI().startsWith("/api")) {
+                            response.setContentType("application/json");
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.getWriter().write("{\"error\": \"Unauthorized - Please login\"}");
+                        } else {
+                            response.sendRedirect("/login");
+                        }
+                    })
+            );
 
         return http.build();
     }

@@ -8,6 +8,7 @@ import com.example.authentication_security.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -40,6 +41,14 @@ public class UserService {
 
         User saved = userRepository.save(user);
         return new UserResponse(saved.getId(), saved.getUsername(), saved.getEmail(), saved.getRole());
+    }
+
+    @Transactional
+    public void deleteUserByUsername(String username) {
+        if (!userRepository.existsByUsername(username)) {
+            throw new IllegalArgumentException("해당 사용자가 존재하지 않습니다.");
+        }
+        userRepository.deleteByUsername(username);
     }
 
 }

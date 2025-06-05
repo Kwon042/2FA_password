@@ -3,6 +3,8 @@ package com.example.authentication_security.domain;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @Setter
@@ -27,4 +29,14 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private UserRole role = UserRole.ROLE_USER;
+
+    @Column(name = "two_factor_enabled")
+    private boolean twoFactorEnabled;
+
+    @Column(name = "two_factor_code")
+    private String twoFactorCode;
+
+    @Column(name = "two_factor_expiry")
+    private LocalDateTime twoFactorExpiry;
+
 }

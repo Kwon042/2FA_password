@@ -1,4 +1,4 @@
-package com.example.authentication_security.global.exception;
+package com.example.authentication_security.global;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;

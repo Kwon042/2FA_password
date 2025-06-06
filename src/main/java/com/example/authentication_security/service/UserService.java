@@ -6,9 +6,13 @@ import com.example.authentication_security.dto.UserResponse;
 import com.example.authentication_security.dto.UserSignupRequest;
 import com.example.authentication_security.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
@@ -16,6 +20,8 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
+
 
     public UserResponse signup(UserSignupRequest dto) {
         if (userRepository.existsByUsername(dto.getUsername())) {
@@ -49,6 +55,40 @@ public class UserService {
             throw new IllegalArgumentException("해당 사용자가 존재하지 않습니다.");
         }
         userRepository.deleteByUsername(username);
+    }
+
+    public boolean verifyTwoFactorCode(String username, String code) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        if (user.getTwoFactorCode() == null || user.getTwoFactorExpiry() == null) {
+            return false;
+        }
+
+        if (user.getTwoFactorExpiry().isBefore(LocalDateTime.now())) {
+            return false;  // 코드 만료
+        }
+
+        if (!user.getTwoFactorCode().equals(code)) {
+            return false;  // 코드 불일치
+        }
+
+        // 검증 성공하면 코드 초기화 (재사용 방지)
+        user.setTwoFactorCode(null);
+        user.setTwoFactorExpiry(null);
+        userRepository.save(user);
+
+        return true;
+    }
+
+
+    public void generateAndSendTwoFactorCode(User user) {
+        String code = String.format("%06d", new Random().nextInt(999999));
+        user.setTwoFactorCode(code);
+        user.setTwoFactorExpiry(LocalDateTime.now().plusMinutes(5)); // 5분 유효
+        userRepository.save(user);
+
+        emailService.sendEmail(user.getEmail(), "Your 2FA Code", "Code: " + code);
     }
 
 }

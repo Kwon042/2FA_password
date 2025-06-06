@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>2FA 인증</title>
+</head>
+<body>
+    <h2>2단계 인증</h2>
+
+    <div th:if="${error}" style="color:red;">
+        <p th:text="${error}"></p>
+    </div>
+
+    <form th:action="@{/2fa/verify}" method="post">
+        <label for="code">6자리 인증 코드:</label>
+        <input type="text" id="code" name="code" maxlength="6" required>
+        <input type="hidden" name="username" th:value="${username}" />
+        <button type="submit">확인</button>
+    </form>
+</body>
+</html>

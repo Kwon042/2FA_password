@@ -1,5 +1,7 @@
-package com.example.authentication_security.security;
+package com.example.authentication_security.config;
 
+import com.example.authentication_security.global.CustomAuthenticationSuccessHandler;
+import com.example.authentication_security.security.CustomUserDetailsService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -12,7 +14,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -22,6 +23,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final CustomUserDetailsService customUserDetailsService;
+    private final CustomAuthenticationSuccessHandler customAuthSuccessHandler;
 //    private final JwtTokenProvider jwtTokenProvider;
 
     @Bean
@@ -29,13 +31,13 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(authorize -> authorize
-                    .requestMatchers("/", "/login", "/signup", "/api/**", "/js/**", "/css/**").permitAll()
+                    .requestMatchers("/", "/login", "/signup", "/api/**", "/js/**", "/css/**", "/2fa", "/2fa/verify").permitAll()
                     .anyRequest().authenticated()
             )
             .formLogin(form -> form
                     .loginPage("/login")
                     .permitAll()
-                    .defaultSuccessUrl("/login_success_form", true)
+                    .successHandler(customAuthSuccessHandler)  // 여기에 2단계 인증 핸들러 등록
             )
             .logout(logout -> logout
                     .logoutUrl("/logout")

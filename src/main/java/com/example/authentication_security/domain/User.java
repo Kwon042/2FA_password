@@ -46,4 +46,16 @@ public class User {
     @Column(name = "two_factor_lock_time")
     private LocalDateTime twoFactorLockTime;
 
+    @Column(name = "account_locked")
+    private Boolean accountLocked;
+
+    @Column(name = "reset_password_code")
+    private String resetPasswordCode;
+
+    @Column(name = "reset_password_lock_time")
+    private LocalDateTime resetPasswordLockTime;
+
+    @Column(name = "reset_password_code_expiry")
+    private LocalDateTime resetPasswordCodeExpiry;
+
 }

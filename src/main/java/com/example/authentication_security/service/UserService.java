@@ -115,4 +115,66 @@ public class UserService {
         emailService.sendEmail(user.getEmail(), "Your 2FA Code", "Code: " + code);
     }
 
+    public void lockAccount(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        user.setAccountLocked(true);
+        userRepository.save(user);
+    }
+
+    public void sendResetPasswordCode(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        // 1분 잠금 체크
+        if (user.getResetPasswordLockTime() != null) {
+            LocalDateTime unlockTime = user.getResetPasswordLockTime().plusMinutes(1);
+            if (LocalDateTime.now().isBefore(unlockTime)) {
+                throw new IllegalStateException("1분 잠금 상태입니다. 잠시 후 다시 시도하세요.");
+            } else {
+                // 잠금 해제
+                user.setResetPasswordLockTime(null);
+                userRepository.save(user);
+            }
+        }
+
+        String code = String.format("%06d", new Random().nextInt(999999));
+        user.setResetPasswordCode(code);
+        user.setResetPasswordCodeExpiry(LocalDateTime.now().plusMinutes(10));
+
+        // 새 코드 발송 시 잠금 시간 초기화
+        user.setResetPasswordLockTime(null);
+
+        userRepository.save(user);
+
+        String subject = "비밀번호 재설정 코드 안내";
+        String text = "안녕하세요.\n비밀번호 재설정 코드는 " + code + " 입니다.\n10분 이내에 사용해주세요.";
+        emailService.sendEmail(user.getEmail(), subject, text);
+    }
+
+    public boolean verifyResetCodeAndChangePassword(String username, String code, String newPassword) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        if (user.getResetPasswordCode() == null || user.getResetPasswordCodeExpiry() == null) {
+            return false; // 코드 없음
+        }
+
+        if (user.getResetPasswordCodeExpiry().isBefore(LocalDateTime.now())) {
+            return false; // 코드 만료
+        }
+
+        if (!user.getResetPasswordCode().equals(code)) {
+            return false; // 코드 불일치
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setAccountLocked(false);  // 잠금 해제
+        user.setResetPasswordCode(null);
+        user.setResetPasswordCodeExpiry(null);
+        userRepository.save(user);
+
+        return true;
+    }
+
 }

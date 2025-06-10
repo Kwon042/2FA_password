@@ -30,3 +30,24 @@ if(lockTime) {
         }, 1000);
     }
 }
+
+const codeInput = document.getElementById('code');
+const feedback = document.getElementById('code-feedback');
+const submitBtn = document.getElementById('submitBtn');
+
+if(codeInput && feedback && submitBtn) {
+    codeInput.addEventListener('input', () => {
+        const val = codeInput.value;
+
+        // 6자리 숫자 정규식 체크
+        const isValid = /^\d{6}$/.test(val);
+
+        if (!isValid) {
+            feedback.style.display = 'block';
+            submitBtn.disabled = true;
+        } else {
+            feedback.style.display = 'none';
+            submitBtn.disabled = false;
+        }
+    });
+}

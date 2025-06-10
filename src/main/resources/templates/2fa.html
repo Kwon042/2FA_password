@@ -22,10 +22,11 @@
 
     <form th:action="@{/2fa/verify}" method="post" id="twoFactorForm">
         <label for="code">6자리 인증 코드:</label>
-        <input type="text" id="code" name="code" maxlength="6" required>
+        <input type="text" id="code" name="code" maxlength="6" required autocomplete="off">
+        <div id="code-feedback" style="color:red; display:none;">6자리 숫자를 정확히 입력하세요.</div>
         <input type="hidden" name="username" th:value="${username}" />
         <input type="hidden" id="twoFactorLockTime" th:value="${twoFactorLockTime}" />
-        <button type="submit">확인</button>
+        <button type="submit" id="submitBtn">확인</button>
     </form>
     <script src="/js/2fa.js"></script>
 </body>

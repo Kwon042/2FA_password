@@ -31,7 +31,7 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
-    // REST 방식으로 2FA 코드 검증
+    // REST 방식으로 2FA 코드 검증 > db 기반
     @PostMapping("/2fa/verify")
     public ResponseEntity<?> verifyTwoFactorCode(@RequestBody TwoFactorDTO dto) {
         boolean success = userService.verifyTwoFactorCode(dto.getUsername(), dto.getCode());

@@ -1,5 +1,6 @@
 package com.example.authentication_security.global;
 
+import com.example.authentication_security.repository.UserRepository;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -13,6 +14,9 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.Random;
 
 @Component
@@ -20,36 +24,38 @@ import java.util.Random;
 public class CustomAuthenticationSuccessHandler implements AuthenticationSuccessHandler {
 
     private final JavaMailSender mailSender;
+    private final UserRepository userRepository;
 
     @Override
-    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
-                                        Authentication authentication) throws IOException, ServletException {
-        // 1. 인증코드 생성 및 메일 전송
+    public void onAuthenticationSuccess(HttpServletRequest request,
+                                        HttpServletResponse response,
+                                        Authentication authentication) throws IOException {
+
         String code = generateVerificationCode();
-        String userEmail = ((UserDetails) authentication.getPrincipal()).getUsername();
+        String username = ((UserDetails) authentication.getPrincipal()).getUsername();
 
-        sendVerificationEmail(userEmail, code);
+        // 1. DB에 코드 저장
+        userRepository.findByUsername(username).ifPresent(user -> {
+            user.setTwoFactorCode(code);
+            user.setTwoFactorExpiry(LocalDateTime.now().plusMinutes(5));
+            userRepository.save(user);
+        });
 
-        // 2. 세션에 코드와 인증 정보 저장
-        HttpSession session = request.getSession();
-        session.setAttribute("2fa_code", code);
-        session.setAttribute("2fa_authentication", authentication);
+        // 2. 이메일 전송
+        sendVerificationEmail(username, code);
 
-        System.out.println("2FA 인증 코드: " + code);
-
-        // 3. 2단계 인증 페이지로 리다이렉트
-        response.sendRedirect("/2fa");
+        String encodedUsername = URLEncoder.encode(username, StandardCharsets.UTF_8);
+        response.sendRedirect("/2fa?username=" + encodedUsername); // 또는 API 클라이언트에선 JSON 응답
     }
 
     private String generateVerificationCode() {
-        Random random = new Random();
-        return String.valueOf(100000 + random.nextInt(900000)); // 6자리
+        return String.valueOf(100000 + new Random().nextInt(900000));
     }
 
     private void sendVerificationEmail(String toEmail, String code) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(toEmail);
-        message.setSubject("Your 2FA Verification Code");
+        message.setSubject("Your 2FA Code");
         message.setText("Your verification code is: " + code);
         mailSender.send(message);
     }

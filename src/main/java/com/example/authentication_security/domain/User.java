@@ -39,4 +39,11 @@ public class User {
     @Column(name = "two_factor_expiry")
     private LocalDateTime twoFactorExpiry;
 
+    // 2fa 로그인 횟수 제한
+    @Column(name = "two_factor_attempts")
+    private Integer twoFactorAttempts;
+
+    @Column(name = "two_factor_lock_time")
+    private LocalDateTime twoFactorLockTime;
+
 }

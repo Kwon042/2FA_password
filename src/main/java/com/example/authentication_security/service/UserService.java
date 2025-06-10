@@ -57,30 +57,54 @@ public class UserService {
         userRepository.deleteByUsername(username);
     }
 
+    // 2fa 시도: 코드 인증하는 과정
     public boolean verifyTwoFactorCode(String username, String code) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        if (user.getTwoFactorCode() == null || user.getTwoFactorExpiry() == null) {
+        LocalDateTime now = LocalDateTime.now();
+
+        // 잠금 상태 확인
+        if (user.getTwoFactorLockTime() != null) {
+            LocalDateTime lockExpires = user.getTwoFactorLockTime().plusMinutes(1);
+            if (now.isBefore(lockExpires)) {
+                // 잠금 중 → 바로 실패 처리
+                return false;
+            } else {
+                // 잠금 시간 지남 → 잠금 해제 및 시도 횟수 초기화
+                user.setTwoFactorLockTime(null);
+                user.setTwoFactorAttempts(0);
+                userRepository.save(user);
+            }
+        }
+
+        // 코드 없거나 만료됨
+        if (user.getTwoFactorCode() == null || user.getTwoFactorExpiry() == null || user.getTwoFactorExpiry().isBefore(now)) {
             return false;
         }
 
-        if (user.getTwoFactorExpiry().isBefore(LocalDateTime.now())) {
-            return false;  // 코드 만료
-        }
-
+        // 코드 불일치 시 시도 횟수 증가 및 잠금 여부 처리
         if (!user.getTwoFactorCode().equals(code)) {
-            return false;  // 코드 불일치
+            int attempts = user.getTwoFactorAttempts() == null ? 1 : user.getTwoFactorAttempts() + 1;
+            user.setTwoFactorAttempts(attempts);
+
+            if (attempts >= 4) {
+                user.setTwoFactorLockTime(now);  // 잠금 시작
+            }
+
+            userRepository.save(user);
+            return false;
         }
 
-        // 검증 성공하면 코드 초기화 (재사용 방지)
+        // 인증 성공 시 시도 횟수, 잠금 시간, 코드 초기화
+        user.setTwoFactorAttempts(0);
+        user.setTwoFactorLockTime(null);
         user.setTwoFactorCode(null);
         user.setTwoFactorExpiry(null);
         userRepository.save(user);
 
         return true;
     }
-
 
     public void generateAndSendTwoFactorCode(User user) {
         String code = String.format("%06d", new Random().nextInt(999999));

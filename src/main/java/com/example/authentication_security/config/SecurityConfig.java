@@ -1,5 +1,6 @@
 package com.example.authentication_security.config;
 
+import com.example.authentication_security.global.CustomAuthenticationFailureHandler;
 import com.example.authentication_security.global.CustomAuthenticationSuccessHandler;
 import com.example.authentication_security.security.CustomUserDetailsService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -24,6 +25,7 @@ public class SecurityConfig {
 
     private final CustomUserDetailsService customUserDetailsService;
     private final CustomAuthenticationSuccessHandler customAuthSuccessHandler;
+    private final CustomAuthenticationFailureHandler customAuthenticationFailureHandler;
 //    private final JwtTokenProvider jwtTokenProvider;
 
     @Bean
@@ -34,10 +36,12 @@ public class SecurityConfig {
                     .requestMatchers("/", "/login", "/signup", "/api/**", "/js/**", "/css/**", "/2fa", "/2fa/verify").permitAll()
                     .anyRequest().authenticated()
             )
+            .userDetailsService(customUserDetailsService)
             .formLogin(form -> form
                     .loginPage("/login")
                     .permitAll()
                     .successHandler(customAuthSuccessHandler)  // 여기에 2단계 인증 핸들러 등록
+                    .failureHandler(customAuthenticationFailureHandler)
             )
             .logout(logout -> logout
                     .logoutUrl("/logout")

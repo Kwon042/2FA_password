@@ -25,6 +25,14 @@ public class PasswordResetController {
             model.addAttribute("message", "3회 인증 실패로 인해 비밀번호 재설정을 진행해주세요.");
             model.addAttribute("username", username);
         }
+
+        if (username != null && !username.isEmpty()) {
+            userService.findUserByUsername(username).ifPresent(user -> {
+                if (user.getResetPasswordLockTime() != null) {
+                    model.addAttribute("lockTime", user.getResetPasswordLockTime().toString());
+                }
+            });
+        }
         return "password-reset-request";
     }
 
@@ -37,10 +45,11 @@ public class PasswordResetController {
             return "redirect:/password-reset/verify";
         } catch (UsernameNotFoundException e) {
             redirectAttributes.addFlashAttribute("error", "해당 사용자명이 존재하지 않습니다.");
-            return "redirect:/password-reset/request";
+            return "redirect:/password-reset";
         } catch (IllegalStateException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
-            return "redirect:/password-reset/request";
+            redirectAttributes.addAttribute("username", username);
+            return "redirect:/password-reset";
         }
     }
 
@@ -60,7 +69,7 @@ public class PasswordResetController {
 
         if (success) {
             model.addAttribute("message", "비밀번호가 성공적으로 변경되었습니다. 로그인하세요.");
-            return "login-form"; // 로그인 페이지로 이동
+            return "login"; // 로그인 페이지로 이동
         } else {
             model.addAttribute("username", username);
             model.addAttribute("error", "코드가 올바르지 않거나 만료되었습니다.");

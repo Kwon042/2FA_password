@@ -1,5 +1,6 @@
 package com.example.authentication_security.controller;
 
+import com.example.authentication_security.domain.TwoFactorStatus;
 import com.example.authentication_security.dto.TwoFactorDTO;
 import com.example.authentication_security.dto.UserResponse;
 import com.example.authentication_security.dto.UserSignupRequest;
@@ -34,13 +35,13 @@ public class UserController {
     // REST 방식으로 2FA 코드 검증 > db 기반
     @PostMapping("/2fa/verify")
     public ResponseEntity<?> verifyTwoFactorCode(@RequestBody TwoFactorDTO dto) {
-        boolean success = userService.verifyTwoFactorCode(dto.getUsername(), dto.getCode());
-        if (success) {
-            return ResponseEntity.ok("2FA 인증 성공");
-        } else {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("2FA 인증 실패");
-        }
-    }
+        TwoFactorStatus status = userService.verifyTwoFactorCode(dto.getUsername(), dto.getCode());
 
+        return switch (status) {
+            case SUCCESS -> ResponseEntity.ok("2FA 인증 성공");
+            case FAILURE -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("2FA 인증 실패");
+            case LOCKED -> ResponseEntity.status(HttpStatus.FORBIDDEN).body("계정이 잠겼습니다. 비밀번호 재설정이 필요합니다.");
+        };
+    }
 
 }

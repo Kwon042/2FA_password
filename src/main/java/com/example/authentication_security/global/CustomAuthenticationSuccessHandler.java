@@ -38,11 +38,13 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
         userRepository.findByUsername(username).ifPresent(user -> {
             user.setTwoFactorCode(code);
             user.setTwoFactorExpiry(LocalDateTime.now().plusMinutes(5));
+            user.setTwoFactorLockTime(null);
+            user.setTwoFactorAttempts(0);
             userRepository.save(user);
-        });
 
-        // 2. 이메일 전송
-        sendVerificationEmail(username, code);
+            // 2. 이메일 전송
+            sendVerificationEmail(user.getEmail(), code);
+        });
 
         String encodedUsername = URLEncoder.encode(username, StandardCharsets.UTF_8);
         response.sendRedirect("/2fa?username=" + encodedUsername); // 또는 API 클라이언트에선 JSON 응답

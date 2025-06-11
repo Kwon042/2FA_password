@@ -1,5 +1,6 @@
 package com.example.authentication_security.service;
 
+import com.example.authentication_security.domain.TwoFactorStatus;
 import com.example.authentication_security.domain.User;
 import com.example.authentication_security.domain.UserRole;
 import com.example.authentication_security.dto.UserResponse;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.Random;
 
 @Service
@@ -58,53 +60,59 @@ public class UserService {
     }
 
     // 2fa 시도: 코드 인증하는 과정
-    public boolean verifyTwoFactorCode(String username, String code) {
+    public TwoFactorStatus verifyTwoFactorCode(String username, String code) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         LocalDateTime now = LocalDateTime.now();
 
-        // 잠금 상태 확인
+        // 1. 잠금 상태 확인
         if (user.getTwoFactorLockTime() != null) {
             LocalDateTime lockExpires = user.getTwoFactorLockTime().plusMinutes(1);
             if (now.isBefore(lockExpires)) {
-                // 잠금 중 → 바로 실패 처리
-                return false;
+                return TwoFactorStatus.LOCKED;
             } else {
-                // 잠금 시간 지남 → 잠금 해제 및 시도 횟수 초기화
                 user.setTwoFactorLockTime(null);
                 user.setTwoFactorAttempts(0);
                 userRepository.save(user);
             }
         }
 
-        // 코드 없거나 만료됨
-        if (user.getTwoFactorCode() == null || user.getTwoFactorExpiry() == null || user.getTwoFactorExpiry().isBefore(now)) {
-            return false;
+        // 2. 코드 만료 또는 없음
+        if (user.getTwoFactorCode() == null || user.getTwoFactorExpiry() == null ||
+                user.getTwoFactorExpiry().isBefore(now)) {
+            return TwoFactorStatus.FAILURE;
         }
 
-        // 코드 불일치 시 시도 횟수 증가 및 잠금 여부 처리
+        // 3. 코드 불일치
         if (!user.getTwoFactorCode().equals(code)) {
             int attempts = user.getTwoFactorAttempts() == null ? 1 : user.getTwoFactorAttempts() + 1;
             user.setTwoFactorAttempts(attempts);
 
-            if (attempts >= 4) {
-                user.setTwoFactorLockTime(now);  // 잠금 시작
+            if (attempts >= 3) {
+                user.setTwoFactorLockTime(now);  // 1분 잠금
+                userRepository.save(user);
+
+                // 비밀번호 재설정 코드 자동 전송
+                generateResetPasswordCode(user);
+
+                return TwoFactorStatus.LOCKED;
             }
 
             userRepository.save(user);
-            return false;
+            return TwoFactorStatus.FAILURE;
         }
 
-        // 인증 성공 시 시도 횟수, 잠금 시간, 코드 초기화
+        // 4. 코드 일치 (성공)
         user.setTwoFactorAttempts(0);
         user.setTwoFactorLockTime(null);
         user.setTwoFactorCode(null);
         user.setTwoFactorExpiry(null);
         userRepository.save(user);
 
-        return true;
+        return TwoFactorStatus.SUCCESS;
     }
+
 
     public void generateAndSendTwoFactorCode(User user) {
         String code = String.format("%06d", new Random().nextInt(999999));
@@ -126,25 +134,24 @@ public class UserService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        // 1분 잠금 체크
         if (user.getResetPasswordLockTime() != null) {
             LocalDateTime unlockTime = user.getResetPasswordLockTime().plusMinutes(1);
             if (LocalDateTime.now().isBefore(unlockTime)) {
                 throw new IllegalStateException("1분 잠금 상태입니다. 잠시 후 다시 시도하세요.");
             } else {
-                // 잠금 해제
                 user.setResetPasswordLockTime(null);
                 userRepository.save(user);
             }
         }
 
+        generateResetPasswordCode(user); // 개선된 코드
+    }
+
+    private void generateResetPasswordCode(User user) {
         String code = String.format("%06d", new Random().nextInt(999999));
         user.setResetPasswordCode(code);
         user.setResetPasswordCodeExpiry(LocalDateTime.now().plusMinutes(10));
-
-        // 새 코드 발송 시 잠금 시간 초기화
-        user.setResetPasswordLockTime(null);
-
+        user.setResetPasswordLockTime(LocalDateTime.now()); // 1분 제한 적용
         userRepository.save(user);
 
         String subject = "비밀번호 재설정 코드 안내";
@@ -175,6 +182,10 @@ public class UserService {
         userRepository.save(user);
 
         return true;
+    }
+
+    public Optional<User> findUserByUsername(String username) {
+        return userRepository.findByUsername(username);
     }
 
 }

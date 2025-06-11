@@ -1,5 +1,6 @@
 package com.example.authentication_security.controller;
 
+import com.example.authentication_security.domain.TwoFactorStatus;
 import com.example.authentication_security.domain.User;
 import com.example.authentication_security.repository.UserRepository;
 import com.example.authentication_security.service.UserService;
@@ -62,34 +63,33 @@ public class TwoFactorViewController {
     public String verifyCode(@RequestParam String username,
                              @RequestParam String code,
                              Model model) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        LocalDateTime now = LocalDateTime.now();
+        log.info("✅ /2fa 요청 진입: {}", username);
+        TwoFactorStatus status = userService.verifyTwoFactorCode(username, code);
 
-        if (user.getTwoFactorLockTime() != null) {
-            LocalDateTime lockExpires = user.getTwoFactorLockTime().plusMinutes(1);
-            if (now.isBefore(lockExpires)) {
-                // 아직 잠금 시간 안 끝남
+        switch (status) {
+            case SUCCESS -> {
+                return "login_success_form";  // 성공 시 로그인 성공 페이지로 이동
+            }
+
+            case FAILURE -> {
                 model.addAttribute("username", username);
-                model.addAttribute("twoFactorLockTime", user.getTwoFactorLockTime());
+                model.addAttribute("error", "인증 코드가 올바르지 않거나 만료되었습니다.");
+                return "2fa";  // 다시 입력받기
+            }
+
+            case LOCKED -> {
+                return "redirect:/password-reset?from2fa=true&username=" +
+                        URLEncoder.encode(username, StandardCharsets.UTF_8);
+            }
+
+            default -> {
+                model.addAttribute("username", username);
+                model.addAttribute("error", "알 수 없는 오류가 발생했습니다.");
                 return "2fa";
-            } else {
-                // 잠금 시간 지남 → 잠금 해제 및 시도 횟수 초기화 후 저장
-                user.setTwoFactorLockTime(null);
-                user.setTwoFactorAttempts(0);
-                userRepository.save(user);
             }
         }
-
-        boolean success = userService.verifyTwoFactorCode(username, code);
-        if (success) {
-            return "login_success_form";
-        } else {
-            model.addAttribute("username", username);
-            model.addAttribute("error", "인증 코드가 올바르지 않거나 만료되었습니다.");
-            return "2fa";
-        }
     }
+
 
 }

@@ -5,6 +5,11 @@
 </head>
 <body>
 <h2>로그인</h2>
+
+<div th:if="${session.loginError}">
+  <p style="color:red" th:text="${session.loginError}"></p>
+</div>
+
 <form method="post" action="/login">
   <label>Username: <input type="text" name="username"/></label><br/>
   <label>Password: <input type="password" name="password"/></label><br/>

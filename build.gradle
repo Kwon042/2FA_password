@@ -43,6 +43,8 @@ dependencies {
 	implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'  // Jackson을 사용하는 경우
 
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
+	implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
+
 
 }
 
